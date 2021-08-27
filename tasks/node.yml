@@ -1,0 +1,41 @@
+- name: "configure cluster for {{ node }}"
+  become: yes
+  shell: |-
+    kubectl config set-cluster kubernetes-the-hard-way \
+      --certificate-authority=ca.pem \
+      --embed-certs=true \
+      --server=https://{{ external_ip }}:6443 \
+      --kubeconfig={{ node }}.kubeconfig
+
+      kubectl config set-credentials system:node:{{ node }} \
+        --client-certificate={{ node }}.pem \
+        --client-key={{ node }}-key.pem \
+        --embed-certs=true \
+        --kubeconfig={{ node }}.kubeconfig
+
+      kubectl config set-context default \
+        --cluster=kubernetes-the-hard-way \
+        --user=system:node:{{ node }} \
+        --kubeconfig={{ node }}.kubeconfig
+
+      kubectl config use-context default --kubeconfig={{ node }}.kubeconfig
+      chmod 0644 {{ node }}.kubeconfig
+  args:
+    chdir: /usr/share/ca-certificates/kthw
+
+# ------------------------------------------------------------------------------
+# copy configuration files to nodes
+# ------------------------------------------------------------------------------
+
+- name: copy configuration files to nodes
+  delegate_to: "{{ node }}"
+  become: yes
+  copy:
+    src: "/usr/share/ca-certificates/kthw/{{ config }}"
+    dest: /root
+    mode: 0600
+  loop:
+    - "{{ node }}.kubeconfig"
+    - kube-proxy.kubeconfig
+  loop_control:
+    loop_var: config

@@ -1,0 +1,25 @@
+
+- name: "configure cluster for kube-proxy"
+  become: yes
+  shell: |-
+    head -c 32 /dev/urandom | base64
+  register: encryption_key
+  args:
+    chdir: /usr/share/ca-certificates/kthw
+
+- name: templates out encryption config file
+  become: yes
+  template:
+    src: encryption-config.yaml.j2
+    dest: /usr/share/ca-certificates/kthw/encryption-config.yaml
+
+- name: copy encryption config file to masters
+  delegate_to: "{{ master }}"
+  become: yes
+  copy:
+    src: "/usr/share/ca-certificates/kthw/encryption-config.yaml"
+    dest: /root
+    mode: 600
+  loop: "{{ groups['masters'] }}"
+  loop_control:
+    loop_var: master
